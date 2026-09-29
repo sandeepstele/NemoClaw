@@ -274,6 +274,33 @@ describe("cleanupSandboxServices Ollama unload (#2717)", () => {
     expect(harness.deps.unloadOllamaModels).not.toHaveBeenCalled();
   });
 
+  it("keeps the PID dir of a still-running cloudflared tunnel and says how to stop it (#11628)", async () => {
+    const harness = buildDeps({ provider: "nvidia-prod" });
+    const removeServicesPidDirUnlessTunnelRunning = vi.fn(() => 4242);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await cleanupSandboxServices(
+        "regression-2717",
+        { stopHostServices: false },
+        { ...harness.deps, removeServicesPidDirUnlessTunnelRunning },
+      );
+
+      expect(removeServicesPidDirUnlessTunnelRunning).toHaveBeenCalledWith(
+        path.join("/tmp", "nemoclaw-services-regression-2717"),
+      );
+      expect(harness.deps.rmSync).not.toHaveBeenCalledWith(
+        path.join("/tmp", "nemoclaw-services-regression-2717"),
+        expect.anything(),
+      );
+      const warnings = warn.mock.calls.map(([line]) => String(line)).join("\n");
+      expect(warnings).toContain("PID 4242");
+      expect(warnings).toContain("NEMOCLAW_SANDBOX_NAME=regression-2717");
+      expect(warnings).toContain("tunnel stop");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("removes the sandbox PID dir and tears down all messaging providers", async () => {
     const harness = buildDeps({ provider: "ollama-local" });
 

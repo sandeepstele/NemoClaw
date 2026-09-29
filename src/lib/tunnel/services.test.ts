@@ -26,6 +26,7 @@ import {
   getTunnelUrl,
   type ProcessControl,
   readCloudflaredState,
+  removeServicesPidDirUnlessTunnelRunning,
   showStatus,
   startAll,
   stopAll,
@@ -395,6 +396,37 @@ describe("startAll", () => {
     expect(log).toContain("token-env-present");
     expect(log).not.toContain("named-secret");
     expect(output).toContain("https://agent.example.com");
+  });
+});
+
+describe("removeServicesPidDirUnlessTunnelRunning (#11628)", () => {
+  let pidDir: string;
+
+  beforeEach(() => {
+    pidDir = mkdtempSync(join(tmpdir(), "nemoclaw-svc-remove-test-"));
+    writeFileSync(join(pidDir, "cloudflared.pid"), "4242");
+  });
+
+  afterEach(() => {
+    rmSync(pidDir, { recursive: true, force: true });
+  });
+
+  it("keeps the PID dir and returns the PID while cloudflared is running", () => {
+    const kept = removeServicesPidDirUnlessTunnelRunning(pidDir, {
+      readState: () => ({ kind: "running", pid: 4242 }),
+    });
+
+    expect(kept).toBe(4242);
+    expect(existsSync(join(pidDir, "cloudflared.pid"))).toBe(true);
+  });
+
+  it.each([
+    { kind: "stopped" } as const,
+    { kind: "stale-pid-file" } as const,
+    { kind: "stale-pid-process", pid: 4242 } as const,
+  ])("removes the PID dir when cloudflared is $kind", (state) => {
+    expect(removeServicesPidDirUnlessTunnelRunning(pidDir, { readState: () => state })).toBeNull();
+    expect(existsSync(pidDir)).toBe(false);
   });
 });
 

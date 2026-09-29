@@ -11,6 +11,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -297,6 +298,26 @@ export function readCloudflaredState(pidDir: string): CloudflaredState {
     return { kind: "stale-pid-process", pid };
   }
   return { kind: "running", pid };
+}
+
+/**
+ * Remove a sandbox's service PID directory unless it records a running cloudflared
+ * tunnel. Deleting that record would orphan the tunnel: `tunnel status` would report
+ * it stopped and `tunnel stop` could no longer find it (#11628). Returns the kept
+ * tunnel's PID, or null after removing the directory.
+ */
+export function removeServicesPidDirUnlessTunnelRunning(
+  pidDir: string,
+  deps: { readState?: typeof readCloudflaredState; remove?: typeof rmSync } = {},
+): number | null {
+  const state = (deps.readState ?? readCloudflaredState)(pidDir);
+  if (state.kind === "running") return state.pid;
+  try {
+    (deps.remove ?? rmSync)(pidDir, { recursive: true, force: true });
+  } catch {
+    // PID directory may not exist.
+  }
+  return null;
 }
 
 function writePid(pidDir: string, name: string, pid: number): void {

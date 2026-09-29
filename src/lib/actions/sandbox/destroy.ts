@@ -226,6 +226,7 @@ export type CleanupSandboxServicesDeps = {
   ollamaModelRefsMatch?: (left: string, right: string) => boolean;
   runOpenshell?: RunOpenshell;
   rmSync?: typeof fs.rmSync;
+  removeServicesPidDirUnlessTunnelRunning?: (pidDir: string) => number | null;
   stopGooglechatWebhookTunnel?: (sandboxName: string) => string;
   googlechatWebhookTunnelPidDir?: (servicePidDir: string) => string;
 };
@@ -279,6 +280,32 @@ function reportFinalGatewayLeftRunning(
   console.warn(
     `  ${YW}⚠${R} After 'openshell sandbox list -g ${gatewayName}' reports no sandboxes, run 'openshell gateway remove ${gatewayName}' to remove it.`,
   );
+}
+
+function removeServicesPidDirUnlessTunnelRunning(
+  pidDir: string,
+  rmSync: typeof fs.rmSync = fs.rmSync,
+): number | null {
+  const services = require("../../tunnel/services") as typeof import("../../tunnel/services");
+  return services.removeServicesPidDirUnlessTunnelRunning(pidDir, { remove: rmSync });
+}
+
+/**
+ * Remove a sandbox's service PID directory unless it records a running cloudflared
+ * tunnel, and tell the operator how to stop a tunnel that was kept (#11628).
+ */
+export function releaseSandboxServicesPidDir(
+  sandboxName: string,
+  servicesPidDir: string,
+  removeUnlessTunnelRunning: (pidDir: string) => number | null = (pidDir) =>
+    removeServicesPidDirUnlessTunnelRunning(pidDir),
+): void {
+  const keptTunnelPid = removeUnlessTunnelRunning(servicesPidDir);
+  if (keptTunnelPid === null) return;
+  console.warn(
+    `  ${YW}⚠${R} cloudflared tunnel (PID ${keptTunnelPid}) is still running; kept its PID file in ${servicesPidDir}.`,
+  );
+  console.warn(`    Stop it with: NEMOCLAW_SANDBOX_NAME=${sandboxName} ${CLI_NAME} tunnel stop`);
 }
 
 export async function cleanupSandboxServices(
@@ -487,14 +514,12 @@ export async function cleanupSandboxServices(
     );
   }
 
-  try {
-    rmSync(servicesPidDir, {
-      recursive: true,
-      force: true,
-    });
-  } catch {
-    // PID directory may not exist — ignore.
-  }
+  releaseSandboxServicesPidDir(
+    validatedSandboxName,
+    servicesPidDir,
+    deps.removeServicesPidDirUnlessTunnelRunning ??
+      ((pidDir) => removeServicesPidDirUnlessTunnelRunning(pidDir, rmSync)),
+  );
   try {
     rmSync(googlechatServicesPidDir, {
       recursive: true,

@@ -125,6 +125,7 @@ const lifecycleMock = vi.hoisted(() => {
 });
 
 export const backupSandboxStateMock = vi.fn();
+export const releaseSandboxServicesPidDirMock = vi.fn();
 export const assertHermesPortableCommandUnavailableMock = vi.fn();
 export const captureSnapshotRestoreAuthorityMock = vi.fn((_backupPath?: string) => ({
   schemaVersion: 1 as const,
@@ -401,6 +402,7 @@ vi.mock("./destroy", async () => {
     typeof import("../../onboard/runtime-provider/access")
   >("../../onboard/runtime-provider/access");
   return {
+    releaseSandboxServicesPidDir: releaseSandboxServicesPidDirMock,
     removeSandboxRegistryEntry: vi.fn(() => true),
     removeSandboxRegistryEntryOutcome: removeSandboxRegistryEntryOutcomeMock,
     requireSandboxDestructiveCleanupAuthority: (sandboxName: string, sandbox: SandboxRecord) =>

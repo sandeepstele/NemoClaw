@@ -352,6 +352,7 @@ vi.mock("../../state/sandbox", () => ({
   restoreSandboxState: restoreSandboxStateMock,
 }));
 vi.mock("./destroy", () => ({
+  releaseSandboxServicesPidDir: vi.fn(),
   removeSandboxRegistryEntryOutcome: removeSandboxRegistryEntryOutcomeMock,
   requireSandboxDestructiveCleanupAuthority: vi.fn(() => ({ provider: runtimeProvider })),
 }));

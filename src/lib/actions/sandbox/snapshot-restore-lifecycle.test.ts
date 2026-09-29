@@ -451,6 +451,10 @@ describe("runSandboxSnapshot restore: lifecycle and destination safety", () => {
     expect(providerDeletes()).toEqual(providerDeletesAtCreation);
     expect(f.streamSandboxCreateMock).toHaveBeenCalled();
     expect(f.restoreSandboxStateMock).toHaveBeenCalledWith("beta", "/tmp/backup-alpha");
+    expect(f.releaseSandboxServicesPidDirMock).toHaveBeenCalledWith(
+      "beta",
+      "/tmp/nemoclaw-services-beta",
+    );
   });
 
   it.each([

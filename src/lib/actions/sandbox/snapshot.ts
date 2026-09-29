@@ -76,6 +76,7 @@ import {
   parseDcodeProbeState,
 } from "./dcode-activity-probe";
 import {
+  releaseSandboxServicesPidDir,
   removeSandboxRegistryEntryOutcome,
   requireSandboxDestructiveCleanupAuthority,
 } from "./destroy";
@@ -801,14 +802,7 @@ async function deleteSandboxForRestore(name: string): Promise<void> {
     // - /tmp/nemoclaw-services-<name>: PID dir for this sandbox's services
     // - OpenShell per-sandbox messaging bridge providers declared by channel
     //   manifests.
-    try {
-      fs.rmSync(`/tmp/nemoclaw-services-${name}`, {
-        recursive: true,
-        force: true,
-      });
-    } catch {
-      // PID dir may not exist \u2014 ignore.
-    }
+    releaseSandboxServicesPidDir(name, `/tmp/nemoclaw-services-${name}`);
     await deleteSandboxProviderRegistrations(name, "messaging", {
       runOpenshell,
     });
